@@ -26,7 +26,6 @@ import Bytes exposing (Bytes)
 import Gren.Kernel.WebSocketServer
 import Init
 import Internal.Init
-import Stream exposing (Readable, Writable)
 import Task exposing (Task)
 
 
@@ -122,26 +121,19 @@ type alias CloseReason =
 
 {-| Subscribe to new WebSocket client connections on a server.
 
-For each new connection the handler receives a record containing the
-[`Connection`](WebSocketServer.Connection), a `Stream.Readable Message` to read
-messages sent by the client, and two writable streams for sending data back:
-`textWritable` (sends text frames) and `binaryWritable` (sends binary frames).
-The readable stream closes when the connection closes.
+For each new connection the handler receives the
+[`Connection`](WebSocketServer.Connection). Read incoming messages with
+[`WebSocketServer.Connection.readable`](WebSocketServer-Connection#readable)
+and send replies with
+[`WebSocketServer.Connection.send`](WebSocketServer-Connection#send).
 
     WebSocketServer.onConnection server
-        (\{ connection, readable } -> ClientConnected { connection = connection, readable = readable })
+        (\connection -> ClientConnected connection)
 
 -}
 onConnection :
     Server
-    ->
-        ({ connection : Connection
-         , readable : Readable Message
-         , textWritable : Writable String
-         , binaryWritable : Writable Bytes
-         }
-         -> msg
-        )
+    -> (Connection -> msg)
     -> Sub msg
 onConnection server handler =
     subscription (OnConnectionSub { server = server, handler = handler })
@@ -162,16 +154,7 @@ onClose server handler =
 
 
 type WebSocketSubscription msg
-    = OnConnectionSub
-        { server : Server
-        , handler :
-            { connection : Connection
-            , readable : Readable Message
-            , textWritable : Writable String
-            , binaryWritable : Writable Bytes
-            }
-            -> msg
-        }
+    = OnConnectionSub { server : Server, handler : Connection -> msg }
     | OnCloseSub { server : Server, handler : Connection -> CloseReason -> msg }
 
 

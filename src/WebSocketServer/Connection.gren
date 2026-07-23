@@ -1,44 +1,99 @@
-module WebSocketServer.Connection exposing
-    ( Error
-    , errorCode
-    , errorToString
-    , errorIsConnectionNotOpen
-    , errorIsConnectionReset
-    , errorIsBrokenPipe
-    , errorIsInvalidCloseCode
-    , errorIsCloseReasonTooLong
-    , send
-    , sendBytes
-    , close
-    )
+module WebSocketServer.Connection exposing (Error, close, errorCode, errorIsBrokenPipe, errorIsCloseReasonTooLong, errorIsConnectionNotOpen, errorIsConnectionReset, errorIsInvalidCloseCode, errorToString, readable, send)
 
-{-| Send messages and close WebSocket connections.
+{-| Read from, send to, and close WebSocket connections.
 
 These operations return Tasks that can fail if the connection is no longer
 open or if a network error occurs. This lets your application detect and
 handle failures explicitly.
 
-    WebSocketServer.Connection.send connection "Hello!"
+    WebSocketServer.Connection.send connection (WebSocketServer.TextMessage "Hello!")
         |> Task.attempt MessageSent
 
 ## Errors
 
 @docs Error, errorCode, errorToString, errorIsConnectionNotOpen, errorIsConnectionReset, errorIsBrokenPipe, errorIsInvalidCloseCode, errorIsCloseReasonTooLong
 
+## Reading
+
+@docs readable
+
 ## Sending
 
-@docs send, sendBytes
+@docs send
 
 ## Closing
 
 @docs close
-
 -}
 
-import Bytes exposing (Bytes)
-import Task exposing (Task)
-import WebSocketServer exposing (Connection)
 import Gren.Kernel.WebSocketServer
+import Stream exposing (Readable)
+import Task exposing (Task)
+import WebSocketServer exposing (Connection, Message(..))
+
+
+
+-- READING
+
+
+{-| The stream of incoming messages for a connection.
+
+Read messages from it using the [`Stream`](Stream) module, for example
+[`Stream.read`](Stream#read) or
+[`Stream.readUntilClosed`](Stream#readUntilClosed). The stream closes when the
+connection closes, and errors if the connection errors (observed as
+`Stream.Cancelled`).
+
+    WebSocketServer.Connection.readable connection
+        |> Stream.read
+        |> Task.attempt ReadResult
+
+-}
+readable : Connection -> Readable Message
+readable connection =
+    Gren.Kernel.WebSocketServer.getReadable connection
+
+
+
+-- SENDING
+
+
+{-| Send a message to a specific client connection.
+
+Use [`WebSocketServer.TextMessage`](WebSocketServer#Message) to send a text
+frame or [`WebSocketServer.BinaryMessage`](WebSocketServer#Message) to send a
+binary frame.
+
+    WebSocketServer.Connection.send connection (WebSocketServer.TextMessage "Hello!")
+        |> Task.attempt MessageSent
+
+-}
+send : Connection -> Message -> Task Error {}
+send connection message =
+    when message is
+        TextMessage text ->
+            Gren.Kernel.WebSocketServer.send connection text
+
+        BinaryMessage bytes ->
+            Gren.Kernel.WebSocketServer.sendBytes connection bytes
+
+
+
+-- CLOSING
+
+
+{-| Close a connection with a status code and reason string.
+
+    WebSocketServer.Connection.close connection 1000 "Normal closure"
+        |> Task.attempt ConnectionClosed
+
+Valid close codes are 1000-1003, 1007-1014, and 3000-4999.
+The reason string must not exceed 123 bytes.
+-}
+close : Connection -> Int -> String -> Task Error {}
+close connection code reason =
+    Gren.Kernel.WebSocketServer.close connection code reason
+
 
 
 -- ERRORS
@@ -114,40 +169,3 @@ the WebSocket protocol limit of 123 bytes.
 errorIsCloseReasonTooLong : Error -> Bool
 errorIsCloseReasonTooLong (Error { message }) =
     String.startsWith "The message must not be greater than 123 bytes" message
-
-
--- SENDING
-
-
-{-| Send a text message to a specific client connection.
-
-    WebSocketServer.Connection.send connection "Hello!"
-        |> Task.attempt MessageSent
-
--}
-send : Connection -> String -> Task Error {}
-send connection data =
-    Gren.Kernel.WebSocketServer.send connection data
-
-
-{-| Send binary data to a specific client connection.
--}
-sendBytes : Connection -> Bytes -> Task Error {}
-sendBytes connection data =
-    Gren.Kernel.WebSocketServer.sendBytes connection data
-
-
--- CLOSING
-
-
-{-| Close a connection with a status code and reason string.
-
-    WebSocketServer.Connection.close connection 1000 "Normal closure"
-        |> Task.attempt ConnectionClosed
-
-Valid close codes are 1000-1003, 1007-1014, and 3000-4999.
-The reason string must not exceed 123 bytes.
--}
-close : Connection -> Int -> String -> Task Error {}
-close connection code reason =
-    Gren.Kernel.WebSocketServer.close connection code reason

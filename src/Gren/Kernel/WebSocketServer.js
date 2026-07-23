@@ -45,17 +45,12 @@ function _WebSocketServer_ensureListenersAttached(server) {
 
   server.on("connection", function (client) {
     var connId = _WebSocketServer_nextConnectionId++;
-    var connection = { __$id: connId, __$client: client };
-
-    // Store the Connection object on the client instance so that close/error
-    // handlers can retrieve it without a separate lookup map.
-    client.__grenConnection = connection;
 
     // Create a ReadableStream that surfaces incoming messages for this
     // connection. The controller is retained on the client so the per-event
     // closures below can enqueue messages and close/error the stream when the
-    // connection ends. The stream is passed to the app via the connection
-    // handler; the app reads messages from it using the Stream module.
+    // connection ends. The stream is exposed to the app via
+    // WebSocketServer.Connection.readable, and read using the Stream module.
     client.__grenStreamClosed = false;
     var messageStream = new ReadableStream({
       start: function (controller) {
@@ -63,18 +58,15 @@ function _WebSocketServer_ensureListenersAttached(server) {
       },
     });
 
-    // Create two WritableStreams for sending data back to the client: one for
-    // text frames (String) and one for binary frames (Bytes). Each write calls
-    // ws#send with the appropriate JS type, and the send callback drives
-    // backpressure by resolving the write once the data is flushed. The sink
-    // controllers are retained so they can be errored when the connection ends.
-    client.__grenWritableControllers = [];
-    var textWritable = _WebSocketServer_makeWritable(client, function (chunk) {
-      return chunk;
-    });
-    var binaryWritable = _WebSocketServer_makeWritable(client, function (chunk) {
-      return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-    });
+    var connection = {
+      __$id: connId,
+      __$client: client,
+      __$readable: messageStream,
+    };
+
+    // Store the Connection object on the client instance so that close/error
+    // handlers can retrieve it without a separate lookup map.
+    client.__grenConnection = connection;
 
     // Notify the app of the new connection, if any handlers are registered.
     var connHandlers = server.__grenConnectionHandlers;
@@ -83,12 +75,7 @@ function _WebSocketServer_ensureListenersAttached(server) {
         A2(
           __Platform_sendToApp,
           connHandlers[i].router,
-          connHandlers[i].handler({
-            __$connection: connection,
-            __$readable: messageStream,
-            __$textWritable: textWritable,
-            __$binaryWritable: binaryWritable,
-          }),
+          connHandlers[i].handler(connection),
         ),
       );
     }
@@ -117,9 +104,6 @@ function _WebSocketServer_ensureListenersAttached(server) {
         }
       }
 
-      // Fail any further writes on the writable streams.
-      _WebSocketServer_terminateWritables(client, "WebSocket connection closed");
-
       var handlers = server.__grenCloseHandlers;
       for (var i = 0; i < handlers.length; i++) {
         __Scheduler_rawSpawn(
@@ -146,48 +130,8 @@ function _WebSocketServer_ensureListenersAttached(server) {
           // Controller may already be closed or errored; safe to ignore.
         }
       }
-
-      // Fail any further writes on the writable streams.
-      _WebSocketServer_terminateWritables(client, err.message);
     });
   });
-}
-
-// Build a WritableStream whose writes forward to ws#send. `toPayload` converts
-// the chunk (a String for text, a Uint8Array for binary) into the value passed
-// to ws#send, which determines the frame type (string -> text, Buffer -> binary).
-// The send callback resolves the write (backpressure) and errors it on failure.
-function _WebSocketServer_makeWritable(client, toPayload) {
-  return new WritableStream({
-    start: function (controller) {
-      client.__grenWritableControllers.push(controller);
-    },
-    write: function (chunk, controller) {
-      return new Promise(function (resolve, reject) {
-        client.send(toPayload(chunk), function (err) {
-          if (err) {
-            controller.error(err.message);
-            reject(err);
-          } else {
-            resolve();
-          }
-        });
-      });
-    },
-  });
-}
-
-// Error every writable sink controller for a client. Called when the connection
-// closes or errors so that pending and future writes fail promptly.
-function _WebSocketServer_terminateWritables(client, reason) {
-  var controllers = client.__grenWritableControllers;
-  for (var i = 0; i < controllers.length; i++) {
-    try {
-      controllers[i].error(reason);
-    } catch (e) {
-      // Controller may already be closed or errored; safe to ignore.
-    }
-  }
 }
 
 // Clear all stored handler references for a server. Called once per server
@@ -198,10 +142,12 @@ var _WebSocketServer_clearHandlers = function (server) {
   server.__grenCloseHandlers = [];
 };
 
-var _WebSocketServer_setConnectionHandler = F3(function (server, router, handler) {
-  _WebSocketServer_ensureListenersAttached(server);
-  server.__grenConnectionHandlers.push({ router: router, handler: handler });
-});
+var _WebSocketServer_setConnectionHandler = F3(
+  function (server, router, handler) {
+    _WebSocketServer_ensureListenersAttached(server);
+    server.__grenConnectionHandlers.push({ router: router, handler: handler });
+  },
+);
 
 var _WebSocketServer_setCloseHandler = F3(function (server, router, handler) {
   _WebSocketServer_ensureListenersAttached(server);
@@ -210,6 +156,10 @@ var _WebSocketServer_setCloseHandler = F3(function (server, router, handler) {
 
 var _WebSocketServer_getConnectionId = function (connection) {
   return connection.__$id;
+};
+
+var _WebSocketServer_getReadable = function (connection) {
+  return connection.__$readable;
 };
 
 function _WebSocketServer_constructError(err) {
@@ -238,7 +188,11 @@ var _WebSocketServer_send = F2(function (connection, data) {
 var _WebSocketServer_sendBytes = F2(function (connection, bytes) {
   return __Scheduler_binding(function (callback) {
     try {
-      var buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      var buffer = Buffer.from(
+        bytes.buffer,
+        bytes.byteOffset,
+        bytes.byteLength,
+      );
       connection.__$client.send(buffer, function (err) {
         if (err) {
           callback(__Scheduler_fail(_WebSocketServer_constructError(err)));
