@@ -311,7 +311,10 @@ describe("WebSocket Server", function () {
     const line = await waitForStdoutLine((l) => l.startsWith("stream error:"));
     const reason = line.slice("stream error:".length).trim();
 
-    assert.ok(reason.length > 0, `Expected a non-empty error reason, got: ${line}`);
+    assert.ok(
+      reason.length > 0,
+      `Expected a non-empty error reason, got: ${line}`,
+    );
 
     // Allow the connection to tear down after the server closes it.
     await new Promise((resolve) => setTimeout(resolve, 50));

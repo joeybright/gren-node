@@ -7,7 +7,7 @@
     "gren-version": "0.6.5",
     "dependencies": {
         "direct": {
-            "blaix/gren-effectful-tests": "5.0.2",
+            "blaix/gren-effectful-tests": "5.0.3",
             "gren-lang/core": "7.0.0",
             "gren-lang/node": "local:../..",
             "gren-lang/test": "5.0.0",
