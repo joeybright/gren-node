@@ -17,6 +17,11 @@ pushd signals
 make test || exit 1
 popd
 
+echo -e "Running file-system tests...\n\n"
+pushd file-system
+make test || exit 1
+popd
+
 echo -e "Running child-process tests...\n\n"
 pushd child-process
 make test || exit 1
