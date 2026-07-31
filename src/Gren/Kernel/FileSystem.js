@@ -663,10 +663,25 @@ var _FileSystem_writeFile = F2(function (data, path) {
 var _FileSystem_writeFileStream = F2(function (pos, path) {
   return __Scheduler_binding(function (callback) {
     try {
-      var fstream = fs.createWriteStream(__FilePath_toString(path), {
+      var filePath = __FilePath_toString(path);
+      var fstream = fs.createWriteStream(filePath, {
         flags: pos === 0 ? "w" : pos === -1 ? "a" : "r+",
         start: pos <= 0 ? undefined : pos,
       });
+      // pos > 0 means the ReplaceFrom option was used, so we keep the first
+      // `pos` bytes and replace everything after with the streamed data.
+      // `createWriteStream` with "r+" and `start` writes at the offset but
+      // does not truncate trailing bytes, so once the stream has drained we
+      // truncate the file to the prefix length plus what was written.
+      if (pos > 0) {
+        fstream.on("finish", function () {
+          fs.truncate(
+            filePath,
+            pos + fstream.bytesWritten,
+            (_) => {}, // the handler is ignored because there is currently no way to propogate an error through a custom Writable
+          );
+        });
+      }
       callback(__Scheduler_succeed(stream.Writable.toWeb(fstream)));
     } catch (err) {
       callback(__Scheduler_fail(_FileSystem_constructError(path, err)));
