@@ -665,7 +665,7 @@ var _FileSystem_writeFileStream = F2(function (pos, path) {
     try {
       var fstream = fs.createWriteStream(__FilePath_toString(path), {
         flags: pos === 0 ? "w" : pos === -1 ? "a" : "r+",
-        start: pos === 0 ? undefined : pos,
+        start: pos <= 0 ? undefined : pos,
       });
       callback(__Scheduler_succeed(stream.Writable.toWeb(fstream)));
     } catch (err) {

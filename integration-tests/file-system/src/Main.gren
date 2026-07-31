@@ -1,0 +1,95 @@
+module Main exposing (main)
+
+import Bytes exposing (Bytes)
+import FileSystem
+import FileSystem.Path as Path
+import Init
+import Node
+import Stream
+import Stream.Log
+import Task exposing (Task)
+
+
+type alias Model =
+    { }
+
+
+type Msg
+    = NoOp
+
+
+main : Node.Program Model Msg
+main =
+    Node.defineProgram
+        { init = init
+        , update = update
+        , subscriptions = \_ -> Sub.none
+        }
+
+
+init : Node.Environment -> Init.Task { model : Model, command : Cmd Msg }
+init env =
+    Init.await FileSystem.initialize <| \fsPerm ->
+    Node.startProgram <|
+        when Array.get 2 env.args is
+            Just "Append" ->
+                { model = {}
+                , command =
+                    FileSystem.tmpDirectory fsPerm
+                        |> Task.map targetFile
+                        |> Task.andThen (append fsPerm)
+                        |> Task.map (\_ -> Cmd.none)
+                        |> Task.onError
+                            (\err ->
+                                Stream.Log.line env.stdout ("APPEND_FAIL: " ++ err)
+                                    |> Task.map (\_ -> Node.exitWithCode 1)
+                            )
+                        |> Task.executeCmd
+                }
+
+            _ ->
+                { model = {}
+                , command =
+                    Stream.Log.line env.stdout "Invalid start argument"
+                        |> Task.execute
+                }
+
+
+update : Msg -> Model -> { model : Model, command : Cmd Msg }
+update _msg model =
+    { model = model
+    , command = Cmd.none
+    }
+
+
+
+-- TESTS
+--
+-- Each test is selected by a start argument (e.g. `node app Append`). The target
+-- file is baked into the test, not passed in; the runner sets it up and verifies
+-- it (see test/*.mjs).
+
+
+{-| `writeFileStream Append` must open the file for appending and stay usable.
+
+`Append` maps to `pos = -1` in the JS kernel. Before the fix, that value
+reached `fs.createWriteStream` as `start: -1`, which Node rejects with
+`ERR_OUT_OF_RANGE`, so opening the stream threw synchronously and the Task
+failed. The runner pre-seeds `targetFile` with content; after this app exits it
+verifies the written bytes landed after it.
+-}
+append : FileSystem.Permission -> Path.Path -> Task String {}
+append fsPerm target =
+    FileSystem.writeFileStream fsPerm FileSystem.Append target
+        |> Task.mapError FileSystem.errorToString
+        |> Task.andThen
+            (\writable ->
+                Stream.write (Bytes.fromString "second\n") writable
+                    |> Task.andThen (\_ -> Stream.closeWritable writable)
+                    |> Task.mapError Stream.errorToString
+            )
+
+
+targetFile : Path.Path -> Path.Path
+targetFile dir =
+    Path.appendPosixString "gren-file-system-append.txt" dir
