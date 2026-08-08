@@ -117,7 +117,7 @@ tests fsPerm =
                 concat
                     [ awaitError "foldl with a bad decoder produces expected error"
                         (Sqlite.foldl (\_ acc -> acc + 1) 0 db { allPeopleQ | rowDecoder = badPersonDecoder }) <| \err ->
-                            test "placeholder" <| \_ ->
+                            test "expected decoding error" <| \_ ->
                                 when err is
                                     Sqlite.DecodingError _ ->
                                         Expect.pass
