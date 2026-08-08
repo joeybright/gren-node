@@ -94,32 +94,25 @@ var _Sqlite_getMaybeOne = F2(function (query, db) {
       const value = iterator.next().value;
 
       if (!value) {
-        return callback(__Scheduler_succeed(__Maybe_Nothing))
+        return callback(__Scheduler_succeed(__Maybe_Nothing));
       }
 
       if (!iterator.next().done) {
         var count = 2;
         for (const value of iterator) {
-            count++;
+          count++;
         }
-        return callback(__Scheduler_fail(__Sqlite_MultipleResultsError(count)))
+        return callback(__Scheduler_fail(__Sqlite_MultipleResultsError(count)));
       }
 
-      const result = A2(
-        __Decode_decodeValue,
-        rowDecoder,
-        _Json_wrap(value),
-      );
+      const result = A2(__Decode_decodeValue, rowDecoder, _Json_wrap(value));
 
       if (__Result_isOk(result)) {
-        callback(__Scheduler_succeed(__Maybe_Just(result.a)))
+        callback(__Scheduler_succeed(__Maybe_Just(result.a)));
       } else {
-        return callback(
-          __Scheduler_fail(__Sqlite_DecodingError(result.a)),
-        );
+        return callback(__Scheduler_fail(__Sqlite_DecodingError(result.a)));
       }
-    }
-    catch (e) {
+    } catch (e) {
       callback(_Sqlite_constructError(e));
     }
   });
