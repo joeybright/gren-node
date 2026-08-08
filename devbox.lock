@@ -2,54 +2,54 @@
   "lockfile_version": "1",
   "packages": {
     "github:NixOS/nixpkgs/nixpkgs-unstable": {
-      "last_modified": "2026-04-28T17:03:49Z",
-      "resolved": "github:NixOS/nixpkgs/e75f25705c2934955ee5075e62530d74aca973c6?lastModified=1777395829&narHash=sha256-HposVFZcsBCevgqLR73w%2FBpSe8J1lMgw5kASnnxO3A4%3D"
+      "last_modified": "2026-08-03T09:05:39Z",
+      "resolved": "github:NixOS/nixpkgs/104240a772428cc2e20d8fd86c9ddbb886bbaff2?lastModified=1785747939&narHash=sha256-D740uKsMbgsfK2oaDenJLLPIZfq7W0%2Fg4KN%2FFls8eKs%3D"
     },
     "gren@0.6": {
-      "last_modified": "2026-04-23T13:07:47Z",
-      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#gren",
+      "last_modified": "2026-08-01T16:34:20Z",
+      "resolved": "github:NixOS/nixpkgs/a5cbcfe954791221bfffe2307f7d1a1bf61a871e#gren",
       "source": "devbox-search",
-      "version": "0.6.5",
+      "version": "0.6.6",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/j4xvzzlrzijd7w27hyr83j5lz27nrz0w-gren-0.6.5",
+              "path": "/nix/store/zf9444pwpbhzzjyvb2sdqz8cbiagqz5w-gren-0.6.6",
               "default": true
             }
           ],
-          "store_path": "/nix/store/j4xvzzlrzijd7w27hyr83j5lz27nrz0w-gren-0.6.5"
+          "store_path": "/nix/store/zf9444pwpbhzzjyvb2sdqz8cbiagqz5w-gren-0.6.6"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/w1z0f4h2slsdzj0m4kblfk49mcfh3b61-gren-0.6.5",
+              "path": "/nix/store/70cjhscik9xjmi9dxsr4fr0bd438dphd-gren-0.6.6",
               "default": true
             }
           ],
-          "store_path": "/nix/store/w1z0f4h2slsdzj0m4kblfk49mcfh3b61-gren-0.6.5"
+          "store_path": "/nix/store/70cjhscik9xjmi9dxsr4fr0bd438dphd-gren-0.6.6"
         },
         "x86_64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/n2l1krv8jhm61n8idbj4f97qgn20pagc-gren-0.6.5",
+              "path": "/nix/store/56y0sjs175cqpwdfvq00yy29ibcyzbc8-gren-0.6.6",
               "default": true
             }
           ],
-          "store_path": "/nix/store/n2l1krv8jhm61n8idbj4f97qgn20pagc-gren-0.6.5"
+          "store_path": "/nix/store/56y0sjs175cqpwdfvq00yy29ibcyzbc8-gren-0.6.6"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/2axa79xb6qlnq6a7p16wy83chi4cj7z2-gren-0.6.5",
+              "path": "/nix/store/86njw564c1kp7nhn5zf023a1whsszkxj-gren-0.6.6",
               "default": true
             }
           ],
-          "store_path": "/nix/store/2axa79xb6qlnq6a7p16wy83chi4cj7z2-gren-0.6.5"
+          "store_path": "/nix/store/86njw564c1kp7nhn5zf023a1whsszkxj-gren-0.6.6"
         }
       }
     },
@@ -101,52 +101,42 @@
         }
       }
     },
-    "nodejs@20": {
-      "last_modified": "2026-04-23T13:07:47Z",
+    "nodejs@22": {
+      "last_modified": "2026-08-01T16:34:20Z",
       "plugin_version": "0.0.4",
-      "resolved": "github:NixOS/nixpkgs/01fbdeef22b76df85ea168fbfe1bfd9e63681b30#nodejs_20",
+      "resolved": "github:NixOS/nixpkgs/a5cbcfe954791221bfffe2307f7d1a1bf61a871e#nodejs_22",
       "source": "devbox-search",
-      "version": "20.20.2",
+      "version": "22.23.2",
       "systems": {
         "aarch64-darwin": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/gvr230jrjzznrhlmfymjj37x0dx3srvv-nodejs-20.20.2",
+              "path": "/nix/store/s0qzknz77k3lzikgywx2piilfp8w0581-nodejs-22.23.2",
               "default": true
             }
           ],
-          "store_path": "/nix/store/gvr230jrjzznrhlmfymjj37x0dx3srvv-nodejs-20.20.2"
+          "store_path": "/nix/store/s0qzknz77k3lzikgywx2piilfp8w0581-nodejs-22.23.2"
         },
         "aarch64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/jx5whkya850cy6a1fjf74p5dfqlcp1cq-nodejs-20.20.2",
+              "path": "/nix/store/i7dq81ramvcyrzasgv8qbf07rgfiqiai-nodejs-22.23.2",
               "default": true
             }
           ],
-          "store_path": "/nix/store/jx5whkya850cy6a1fjf74p5dfqlcp1cq-nodejs-20.20.2"
-        },
-        "x86_64-darwin": {
-          "outputs": [
-            {
-              "name": "out",
-              "path": "/nix/store/ggqdy8b4b62gr1ak2v41dka5s1dmflzk-nodejs-20.20.2",
-              "default": true
-            }
-          ],
-          "store_path": "/nix/store/ggqdy8b4b62gr1ak2v41dka5s1dmflzk-nodejs-20.20.2"
+          "store_path": "/nix/store/i7dq81ramvcyrzasgv8qbf07rgfiqiai-nodejs-22.23.2"
         },
         "x86_64-linux": {
           "outputs": [
             {
               "name": "out",
-              "path": "/nix/store/nr0dnrnibq8114xa0i7zr7qg6n05q03g-nodejs-20.20.2",
+              "path": "/nix/store/3vm4j8im8bzdal3dsgmhv9gb5kvanbp1-nodejs-22.23.2",
               "default": true
             }
           ],
-          "store_path": "/nix/store/nr0dnrnibq8114xa0i7zr7qg6n05q03g-nodejs-20.20.2"
+          "store_path": "/nix/store/3vm4j8im8bzdal3dsgmhv9gb5kvanbp1-nodejs-22.23.2"
         }
       }
     }
