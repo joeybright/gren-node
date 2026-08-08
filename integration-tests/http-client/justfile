@@ -1,0 +1,13 @@
+test:
+	node run.mjs
+
+build:
+	gren make TestsServer --output=server-app
+	gren make Tests --output=tests-app
+	gren make LegacyStreamTests --output=stream-tests-app
+
+clean:
+	rm -rf .gren
+	rm server-app
+	rm tests-app
+	rm stream-tests-app

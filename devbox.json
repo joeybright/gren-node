@@ -3,12 +3,13 @@
   "packages": [
     "nodejs@22",
     "gren@0.6",
-    "nodePackages.prettier@latest"
+    "nodePackages.prettier@latest",
+    "just@latest"
   ],
   "shell": {
     "init_hook": ["echo 'Welcome to devbox!' > /dev/null"],
     "scripts": {
-      "format": "prettier -w \"!**/*.json\" .",
+      "format":       "prettier -w \"!**/*.json\" .",
       "format:check": "prettier -c \"!**/*.json\" .",
       "test": [
         "cd tests/",

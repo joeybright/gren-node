@@ -92,7 +92,9 @@ var _Sqlite_executeMany = F3(function (statement, values, db) {
         lastResult = prepped.run();
       } else {
         for (const val of values) {
-          lastResult = prepped.run(__Json_unwrap(__SqliteEncode_toJson(statement.__$parameters(val))));
+          lastResult = prepped.run(
+            __Json_unwrap(__SqliteEncode_toJson(statement.__$parameters(val))),
+          );
         }
       }
 
@@ -121,18 +123,12 @@ var _Sqlite_executeScript = F2(function (script, db) {
 
 var _Sqlite_constructError = function (e) {
   if (e.errcode === 787) {
-    return __Scheduler_fail(
-      __Sqlite_ForeignKeyError(e.message)
-    );
+    return __Scheduler_fail(__Sqlite_ForeignKeyError(e.message));
   }
 
   if (e.errcode === 2067) {
-    return __Scheduler_fail(
-      __Sqlite_UniqueConstraintError(e.message)
-    );
+    return __Scheduler_fail(__Sqlite_UniqueConstraintError(e.message));
   }
 
-  return __Scheduler_fail(
-    __Sqlite_GenericError(e.message),
-  );
+  return __Scheduler_fail(__Sqlite_GenericError(e.message));
 };
