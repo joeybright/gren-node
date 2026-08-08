@@ -76,36 +76,21 @@ type alias Query value =
 
 getOne : Database -> Query value -> Task Error value
 getOne db query =
-    getAll db query
+    Gren.Kernel.Sqlite.getMaybeOne query db
         |> Task.andThen
             (\results ->
                 when results is
-                    [] ->
+                    Nothing ->
                         Task.fail NoResultsError
 
-                    [ value ] ->
+                    Just value ->
                         Task.succeed value
-
-                    _ ->
-                        Task.fail (MultipleResultsError (Array.length results))
             )
 
 
 getMaybeOne : Database -> Query value -> Task Error (Maybe value)
 getMaybeOne db query =
-    getAll db query
-        |> Task.andThen
-            (\results ->
-                when results is
-                    [] ->
-                        Task.succeed Nothing
-
-                    [ value ] ->
-                        Task.succeed (Just value)
-
-                    _ ->
-                        Task.fail (MultipleResultsError (Array.length results))
-            )
+    Gren.Kernel.Sqlite.getMaybeOne query db
         
 
 getAll : Database -> Query value -> Task Error (Array value)

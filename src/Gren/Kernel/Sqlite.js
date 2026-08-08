@@ -1,6 +1,6 @@
 /*
 
-import Sqlite exposing (GenericError, ForeignKeyError, UniqueConstraintError, DecodingError)
+import Sqlite exposing (GenericError, ForeignKeyError, UniqueConstraintError, DecodingError, MultipleResultsError)
 import Gren.Kernel.FilePath exposing (toString)
 import Gren.Kernel.Scheduler exposing (binding, succeed, fail)
 import Gren.Kernel.Json exposing (wrap, unwrap)
@@ -8,6 +8,7 @@ import Json.Decode as Decode exposing (decodeValue)
 import Result exposing (isOk)
 import Sqlite.Encode as SqliteEncode exposing (toJson)
 import Sqlite.Decode as SqliteDecode exposing (toJson)
+import Maybe exposing (Just, Nothing)
 
 */
 
@@ -77,6 +78,48 @@ var _Sqlite_getAll = F2(function (query, db) {
 
       callback(__Scheduler_succeed(results));
     } catch (e) {
+      callback(_Sqlite_constructError(e));
+    }
+  });
+});
+
+var _Sqlite_getMaybeOne = F2(function (query, db) {
+  return __Scheduler_binding(function (callback) {
+    try {
+      const prepped = db.prepare(query.__$query);
+      const params = __Json_unwrap(__SqliteEncode_toJson(query.__$parameters));
+      const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
+      const iterator = prepped.iterate(params);
+
+      const value = iterator.next().value;
+
+      if (!value) {
+        return callback(__Scheduler_succeed(__Maybe_Nothing))
+      }
+
+      if (!iterator.next().done) {
+        var count = 2;
+        for (const value of iterator) {
+            count++;
+        }
+        return callback(__Scheduler_fail(__Sqlite_MultipleResultsError(count)))
+      }
+
+      const result = A2(
+        __Decode_decodeValue,
+        rowDecoder,
+        _Json_wrap(value),
+      );
+
+      if (__Result_isOk(result)) {
+        callback(__Scheduler_succeed(__Maybe_Just(result.a)))
+      } else {
+        return callback(
+          __Scheduler_fail(__Sqlite_DecodingError(result.a)),
+        );
+      }
+    }
+    catch (e) {
       callback(_Sqlite_constructError(e));
     }
   });
