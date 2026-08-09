@@ -52,10 +52,10 @@ var _Sqlite_close = function (db) {
   });
 };
 
-var _Sqlite_getAll = F2(function (query, db) {
+var _Sqlite_foldl = F4(function (query, db, func, acc) {
   return __Scheduler_binding(function (callback) {
     try {
-      const results = [];
+      var acc_ = acc;
       const prepped = db.prepare(query.__$query);
       const params = __Json_unwrap(__SqliteEncode_toJson(query.__$parameters));
       const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
@@ -68,15 +68,14 @@ var _Sqlite_getAll = F2(function (query, db) {
         );
 
         if (__Result_isOk(jsonResult)) {
-          results.push(jsonResult.a);
+          acc_ = A2(func, jsonResult.a, acc_);
         } else {
           return callback(
             __Scheduler_fail(__Sqlite_DecodingError(jsonResult.a)),
           );
         }
       }
-
-      callback(__Scheduler_succeed(results));
+      callback(__Scheduler_succeed(acc_));
     } catch (e) {
       callback(_Sqlite_constructError(e));
     }

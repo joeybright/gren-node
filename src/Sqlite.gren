@@ -1,6 +1,7 @@
 module Sqlite exposing (..)
 
 
+import Array.Builder
 import FileSystem
 import FileSystem.Path exposing (Path)
 import Json.Decode as Decode
@@ -95,7 +96,13 @@ getMaybeOne db query =
 
 getAll : Database -> Query value -> Task Error (Array value)
 getAll db query =
-    Gren.Kernel.Sqlite.getAll query db
+    foldl Array.Builder.pushLast (Array.Builder.empty 0) db query
+        |> Task.map Array.Builder.toArray
+
+
+foldl : (a -> b -> b) -> b -> Database -> Query a -> Task Error b
+foldl func acc db query =
+    Gren.Kernel.Sqlite.foldl query db func acc
 
 
 -- EXECUTIONS

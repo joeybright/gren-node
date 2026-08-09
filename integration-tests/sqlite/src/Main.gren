@@ -115,7 +115,30 @@ tests fsPerm =
         , await "Open db for multiple inserts" createTestDb <| \db ->
             await "Insert all people" (insertPeople people db) <| \summary ->
                 concat
-                    [ test "summary.changes is 1 (only reports from last execution)" <| \_ ->
+                    [ awaitError "foldl with a bad decoder produces expected error"
+                        (Sqlite.foldl (\_ acc -> acc + 1) 0 db { allPeopleQ | rowDecoder = badPersonDecoder }) <| \err ->
+                            test "expected decoding error" <| \_ ->
+                                when err is
+                                    Sqlite.DecodingError _ ->
+                                        Expect.pass
+                                    
+                                    _ ->
+                                        Expect.fail "Expected `DecodingError` from failed decoding"
+                    , await "can foldl over people and count them"
+                        (Sqlite.foldl (\_ acc -> acc + 1) 0 db allPeopleQ) <| \count ->
+                            test "Count is expected" <| \_ ->
+                                Expect.equal count 2
+                    , await "can foldl over people to build an list of names"
+                        (Sqlite.foldl (\{ name } acc -> Array.pushLast name acc) [] db allPeopleQ) <| \namesArray ->
+                            concat
+                                [ test "Array contains the name Robin" <| \_ ->
+                                    Expect.equal (Array.member "Robin" namesArray) True
+                                , test "Array contains the name Justin" <| \_ ->
+                                    Expect.equal (Array.member "Justin" namesArray) True
+                                , test "Array is of expected shape" <| \_ ->
+                                    Expect.equal namesArray [ "Robin", "Justin" ]
+                                ]
+                    , test "summary.changes is 1 (only reports from last execution)" <| \_ ->
                         Expect.equal 1 summary.changes
                     , test "summary.lastInsertedRowid is > 0" <| \_ ->
                         Expect.greaterThan 0 summary.lastInsertRowid
@@ -280,6 +303,13 @@ personDecoder : Decoder Person
 personDecoder =
     Decode.string "name" <| \name ->
     Decode.string "role" <| \role ->
+        Decode.succeed { name = name, role = role }
+
+
+badPersonDecoder : Decoder Person
+badPersonDecoder =
+    Decode.string "namee" <| \name ->
+    Decode.string "role_" <| \role ->
         Decode.succeed { name = name, role = role }
 
 
