@@ -6,6 +6,7 @@ import Test.Runner.Effectful as Effectful exposing (test, await, awaitError, con
 import Sqlite
 import Sqlite.Encode as Encode
 import Sqlite.Decode as Decode exposing (Decoder)
+import Sqlite.Function
 import Task exposing (Task)
 import FileSystem
 import FileSystem.Path as Path exposing (Path)
@@ -232,6 +233,24 @@ tests fsPerm =
                     await "Read test times back" (Sqlite.getAll db allTimesQ) <| \fromDb ->
                         test "Time values survive float round-trip through db" <| \_ ->
                             Expect.equalArrays testTimes fromDb
+        , await "Open db for custom SQLite function tests" createTestDb <| \db ->
+            concat
+                [ await "Create a custom function"
+                    (Sqlite.Function.fn "always_joey" (\_first -> Sqlite.Function.String "Joey") db) <| \_ ->
+                        await "Insert person into the database" (insertPerson joey db) <| \_ ->
+                            await "Run the custom function in a query"
+                                (let
+                                    query =
+                                        { query = "SELECT name, role FROM people WHERE name = always_joey(:name)"
+                                        , parameters = [ Encode.string "name" "Robin" ]
+                                        , rowDecoder = personDecoder
+                                        }
+                                in
+                                Sqlite.getOne db query) <| \person ->
+                                    test "The function overwrites the name in the query"
+                                        (\_ -> Expect.equal person.name "Joey")
+                
+                ]
         ]
 
 
@@ -255,6 +274,13 @@ justin : Person
 justin =
     { name = "Justin"
     , role = "Core developer"
+    }
+
+
+joey : Person
+joey =
+    { name = "Joey"
+    , role = "Contributor"
     }
 
 

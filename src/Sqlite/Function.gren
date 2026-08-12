@@ -1,0 +1,34 @@
+module Sqlite.Function exposing ( .. )
+
+{-|-}
+
+import Json.Decode
+import Json.Encode
+import Sqlite
+import Task exposing (Task)
+
+
+{-| The result that must be procuded
+
+When a function run
+
+- `Error` ...
+- `String` when a result will save a `String` to the database
+-}
+type Result
+    = Error
+    | String String
+
+
+{-| Add a custom SQLite function with one expected argument.
+-}
+fn : String -> (String -> Result) -> Sqlite.Database -> Task a {}
+fn name func db = 
+    Gren.Kernel.Sqlite.function db name func 1
+
+
+{-| Add a custom SQLite function with two expected arguments.
+-}
+fn2 : String -> (String -> String -> Result) -> Sqlite.Database -> Task a {}
+fn2 name func db =
+    Gren.Kernel.Sqlite.function db name func 2

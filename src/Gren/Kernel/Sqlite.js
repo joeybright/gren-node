@@ -52,6 +52,35 @@ var _Sqlite_close = function (db) {
   });
 };
 
+var _Sqlite_function = F4(function (db, name, func, args) {
+  return __Scheduler_binding(function (callback) {
+    try {
+      const options = {
+        deterministic: true,
+        directOnly: true,
+        useBigIntArguments: false,
+        varargs: false,
+      };
+      var wrappedFunc;
+      if (args == 2) {
+        wrappedFunc = function (first, second) {
+          const value = A2(func, JSON.stringify(first), JSON.stringify(second));
+          return value.a;
+        };
+      } else {
+        wrappedFunc = function (first) {
+          const value = func(JSON.stringify(first));
+          return value.a;
+        };
+      }
+      db.function(name, options, wrappedFunc);
+      callback(__Scheduler_succeed({}));
+    } catch (e) {
+      callback(_Sqlite_constructError(e));
+    }
+  });
+});
+
 var _Sqlite_foldl = F4(function (query, db, func, acc) {
   return __Scheduler_binding(function (callback) {
     try {
