@@ -73,6 +73,44 @@ tests fsPerm =
                     test "Works" <| \_ ->
                         Expect.pass
                 ]
+        , await "Create database for backup testing" createTestDb <| \db ->
+            let
+                backupDbPath =
+                    Path.fromPosixString ".backup.db"
+
+                slowBackupDbPath =
+                    Path.fromPosixString ".backup-slow.db"
+            in
+            concat
+                [ await "Insert a person into the created database" (insertPerson joey db) <| \_ ->
+                    concat
+                    [ await "Backup the database"
+                        (Sqlite.backup fsPerm backupDbPath db |> Sqlite.runBackup) <| \_ ->
+                            await "Open the newly backed up database"
+                                (Sqlite.open fsPerm Sqlite.defaultOptions (Sqlite.File backupDbPath)) <| \backupDb ->
+                                    await "Get the person from the backup database" 
+                                        (Sqlite.getOne backupDb (personByNameQ joey.name))  <| \backupPerson ->
+                                            await "Also get the person from the original database" 
+                                                (Sqlite.getOne backupDb (personByNameQ joey.name)) <| \originalPerson ->
+                                                    concat
+                                                        [ test "Name is the same in original and backup database" <| \_ ->
+                                                            Expect.equal backupPerson.name originalPerson.name
+                                                        , test "Role is the same in original and backup database" <| \_ ->
+                                                            Expect.equal backupPerson.role originalPerson.role
+                                                        , await "Remove from disk" (FileSystem.remove fsPerm { recursive = False } backupDbPath) <| \_ ->
+                                                                test "Worked" <| \_ ->
+                                                                    Expect.pass
+                                                        ]
+                    , await "Backup the database to a different file with a smaller page count" 
+                        (Sqlite.backup fsPerm slowBackupDbPath db 
+                            |> Sqlite.withBackupPageRate 1
+                            |> Sqlite.runBackup
+                        ) <| \_ ->
+                            await "Remove from disk" (FileSystem.remove fsPerm { recursive = False } slowBackupDbPath) <| \_ ->
+                                test "Worked" <| \_ ->
+                                    Expect.pass
+                    ]
+                ]
         , await "Open physical database" (initializePhysicalDb fsPerm) <| \db ->
             await "Can be closed" (Sqlite.close db) <| \_ ->
                 await "Remove from disk" (FileSystem.remove fsPerm { recursive = False } diskDbPath) <| \_ ->
@@ -255,6 +293,13 @@ justin : Person
 justin =
     { name = "Justin"
     , role = "Core developer"
+    }
+
+
+joey : Person
+joey =
+    { name = "Joey"
+    , role = "Contributor"
     }
 
 

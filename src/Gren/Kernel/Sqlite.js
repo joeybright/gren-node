@@ -52,6 +52,27 @@ var _Sqlite_close = function (db) {
   });
 };
 
+var _Sqlite_backup = F3(function (destination, pages, db) {
+  return __Scheduler_binding(function (callback) {
+    try {
+      sqlite
+        .backup(db, destination, {
+          source: "main",
+          target: "main",
+          rate: pages,
+        })
+        .then(function (res) {
+          callback(__Scheduler_succeed({}));
+        })
+        .catch(function (e) {
+          callback(_Sqlite_constructError(e));
+        });
+    } catch (e) {
+      callback(_Sqlite_constructError(e));
+    }
+  });
+});
+
 var _Sqlite_foldl = F4(function (query, db, func, acc) {
   return __Scheduler_binding(function (callback) {
     try {
