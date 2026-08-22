@@ -70,8 +70,8 @@ close =
 
 type alias Query value =
     { query : String
-    , parameters : Array Sqlite.Encode.Value
-    , rowDecoder : Sqlite.Decode.Decoder value
+    , parameters : Array Sqlite.Encode.Column
+    , rowDecoder : Sqlite.Decode.Column value
     }
 
 
@@ -110,7 +110,7 @@ foldl func acc db query =
 
 type alias Statement =
     { statement : String
-    , parameters : Array Sqlite.Encode.Value
+    , parameters : Array Sqlite.Encode.Column
     }
 
 
@@ -145,7 +145,7 @@ executeAll db statements =
 executeForEach :
     Database
     -> { statement : String
-       , parameters : value -> Array Sqlite.Encode.Value
+       , parameters : value -> Array Sqlite.Encode.Column
        }
     -> Array value
     -> Task Error ExecutionSummary

@@ -173,14 +173,14 @@ tests fsPerm =
                 statements =
                     [ { statement = "INSERT INTO people (name, role) VALUES (:name, :role)"
                       , parameters =
-                            [ Encode.string "name" robin.name
-                            , Encode.string "role" robin.role
+                            [ Encode.column "name" <| Encode.string robin.name
+                            , Encode.column "role" <| Encode.string robin.role
                             ]
                       }
                     , { statement = "INSERT INTO people (name, role) VALUES (:name, :role)"
                       , parameters =
-                            [ Encode.string "name" justin.name
-                            , Encode.string "role" justin.role
+                            [ Encode.column "name" <| Encode.string justin.name
+                            , Encode.column "role" <| Encode.string justin.role
                             ]
                       }
                     , { statement =
@@ -191,8 +191,8 @@ tests fsPerm =
                             WHERE a.name = :personA AND b.name = :personB
                             """
                       , parameters =
-                            [ Encode.string "personA" robin.name
-                            , Encode.string "personB" justin.name
+                            [ Encode.column "personA" <| Encode.string robin.name
+                            , Encode.column "personB" <| Encode.string justin.name
                             ]
                       }
                     ]
@@ -242,14 +242,13 @@ tests fsPerm =
                                 (let
                                     query =
                                         { query = "SELECT name, role FROM people WHERE name = always_joey(:name)"
-                                        , parameters = [ Encode.string "name" "Robin" ]
+                                        , parameters = [ Encode.column "name" <| Encode.string "Robin" ]
                                         , rowDecoder = personDecoder
                                         }
                                 in
                                 Sqlite.getOne db query) <| \person ->
                                     test "The function overwrites the name in the query"
                                         (\_ -> Expect.equal person.name "Joey")
-                
                 ]
         ]
 
@@ -318,24 +317,24 @@ execDbSchema db =
         """
 
 
-personEncoder : Person -> Array Encode.Value
+personEncoder : Person -> Array Encode.Column
 personEncoder p =
-    [ Encode.string "name" p.name
-    , Encode.string "role" p.role
+    [ Encode.column "name" <| Encode.string p.name
+    , Encode.column "role" <| Encode.string p.role
     ]
 
 
-personDecoder : Decoder Person
+personDecoder : Decode.Column Person
 personDecoder =
-    Decode.string "name" <| \name ->
-    Decode.string "role" <| \role ->
+    Decode.column "name" Decode.string <| \name ->
+    Decode.column "role" Decode.string <| \role ->
         Decode.succeed { name = name, role = role }
 
 
-badPersonDecoder : Decoder Person
+badPersonDecoder : Decode.Column Person
 badPersonDecoder =
-    Decode.string "namee" <| \name ->
-    Decode.string "role_" <| \role ->
+    Decode.column "namee" Decode.string <| \name ->
+    Decode.column "role_" Decode.string <| \role ->
         Decode.succeed { name = name, role = role }
 
 
@@ -358,8 +357,8 @@ defineFriends nameA nameB db =
             WHERE a.name = :personA AND b.name = :personB
             """
         , parameters =
-            [ Encode.string "personA" nameA
-            , Encode.string "personB" nameB
+            [ Encode.column "personA" <| Encode.string nameA
+            , Encode.column "personB" <| Encode.string nameB
             ]
         }
 
@@ -372,8 +371,8 @@ defineFriendsById idA idB db =
             INSERT INTO friends (person_a, person_b) VALUES (:idA, :idB)
             """
         , parameters =
-            [ Encode.int "idA" idA
-            , Encode.int "idB" idB
+            [ Encode.column "idA" <| Encode.int idA
+            , Encode.column "idB" <| Encode.int idB
             ]
         }
 
@@ -381,7 +380,7 @@ defineFriendsById idA idB db =
 personByNameQ : String -> Sqlite.Query Person
 personByNameQ name =
     { query = "SELECT * FROM people WHERE name = :name"
-    , parameters = [ Encode.string "name" name ]
+    , parameters = [ Encode.column "name" <| Encode.string name ]
     , rowDecoder = personDecoder
     }
 
@@ -406,8 +405,8 @@ friendshipQ =
         """
     , parameters = []
     , rowDecoder =
-        Decode.string "person_a" <| \personA ->
-        Decode.string "person_b" <| \personB ->
+        Decode.column "person_a" Decode.string <| \personA ->
+        Decode.column "person_b" Decode.string <| \personB ->
             Decode.succeed { personA = personA, personB = personB }
     }
 
@@ -430,7 +429,7 @@ execBadTemplate num db =
         , parameters =
             Array.initialize num 0
                 (\idx ->
-                    Encode.int ("id" ++ String.fromInt idx) idx
+                    Encode.column ("id" ++ String.fromInt idx) <| Encode.int idx
                 )
         }
 
@@ -439,7 +438,7 @@ failDecoder : Sqlite.Database -> Task Sqlite.Error Int
 failDecoder db =
     Sqlite.getOne db
         { query = "SELECT * FROM people WHERE name = :name"
-        , parameters = [ Encode.string "name" "Robin" ]
+        , parameters = [ Encode.column "name" <| Encode.string "Robin" ]
         , rowDecoder = Decode.fail "Oopsy!"
         }
 
@@ -448,10 +447,10 @@ badDecoder : Sqlite.Database -> Task Sqlite.Error { name : Int, role : String }
 badDecoder db =
     Sqlite.getOne db
         { query = "SELECT * FROM people WHERE name = :name"
-        , parameters = [ Encode.string "name" "Robin" ]
+        , parameters = [ Encode.column "name" <| Encode.string "Robin" ]
         , rowDecoder =
-            Decode.int "name" <| \name ->
-            Decode.string "role" <| \role ->
+            Decode.column "name" Decode.int <| \name ->
+            Decode.column "role" Decode.string <| \role ->
                 Decode.succeed { name = name, role = role }
         }
 
@@ -511,33 +510,33 @@ initializeFieldTypeDb fsPerm =
             )
 
 
-allFieldTypesEncoder : AllFieldTypes -> Array Encode.Value
+allFieldTypesEncoder : AllFieldTypes -> Array Encode.Column
 allFieldTypesEncoder row =
-    [ Encode.string "string_field" row.stringField
-    , Encode.int "int_field" row.intField
-    , Encode.float "float_field" row.floatField
-    , Encode.bool "bool_true" row.boolTrue
-    , Encode.bool "bool_false" row.boolFalse
-    , Encode.json "json_field" (Json.Encode.array Json.Encode.string row.jsonField)
-    , Encode.time "time_field" row.timeField
-    , Encode.timeWithMillis "time_with_millis_field" row.timeWithMillisField
-    , Encode.maybe Encode.string "maybe_just_string" row.maybeJustString
-    , Encode.maybe Encode.string "maybe_nothing_string" row.maybeNothingString
+    [ Encode.column "string_field" <| Encode.string row.stringField
+    , Encode.column "int_field" <| Encode.int row.intField
+    , Encode.column "float_field" <| Encode.float row.floatField
+    , Encode.column "bool_true" <| Encode.bool row.boolTrue
+    , Encode.column "bool_false" <| Encode.bool row.boolFalse
+    , Encode.column "json_field" <| Encode.json (Json.Encode.array Json.Encode.string row.jsonField)
+    , Encode.column "time_field" <| Encode.time row.timeField
+    , Encode.column "time_with_millis_field" <| Encode.timeWithMillis row.timeWithMillisField
+    , Encode.column "maybe_just_string" <| Encode.maybe Encode.string row.maybeJustString
+    , Encode.column "maybe_nothing_string" <| Encode.maybe Encode.string row.maybeNothingString
     ]
 
 
-allFieldTypesDecoder : Decoder AllFieldTypes
+allFieldTypesDecoder : Decode.Column AllFieldTypes
 allFieldTypesDecoder =
-    Decode.string "string_field" <| \stringField ->
-    Decode.int "int_field" <| \intField ->
-    Decode.float "float_field" <| \floatField ->
-    Decode.bool "bool_true" <| \boolTrue ->
-    Decode.bool "bool_false" <| \boolFalse ->
-    Decode.json (Json.Decode.array Json.Decode.string) "json_field" <| \jsonField ->
-    Decode.time "time_field" <| \timeField ->
-    Decode.time "time_with_millis_field" <| \timeWithMillisField ->
-    Decode.maybe Decode.string "maybe_just_string" <| \maybeJustString ->
-    Decode.maybe Decode.string "maybe_nothing_string" <| \maybeNothingString ->
+    Decode.column "string_field" Decode.string <| \stringField ->
+    Decode.column "int_field" Decode.int <| \intField ->
+    Decode.column "float_field" Decode.float <| \floatField ->
+    Decode.column "bool_true" Decode.bool <| \boolTrue ->
+    Decode.column "bool_false" Decode.bool <| \boolFalse ->
+    Decode.column "json_field" (Decode.json (Json.Decode.array Json.Decode.string)) <| \jsonField ->
+    Decode.column "time_field" Decode.time <| \timeField ->
+    Decode.column "time_with_millis_field" Decode.time <| \timeWithMillisField ->
+    Decode.column "maybe_just_string" (Decode.maybe Decode.string) <| \maybeJustString ->
+    Decode.column "maybe_nothing_string" (Decode.maybe Decode.string) <| \maybeNothingString ->
         Decode.succeed
             { stringField = stringField
             , intField = intField
@@ -628,7 +627,7 @@ insertTimes : Array Time.Posix -> Sqlite.Database -> Task Sqlite.Error Sqlite.Ex
 insertTimes times db =
     Sqlite.executeForEach db
         { statement = "INSERT INTO times (t) VALUES (:t)"
-        , parameters = \t -> [ Encode.timeWithMillis "t" t ]
+        , parameters = \t -> [ Encode.column "t" <| Encode.timeWithMillis t ]
         }
         times
 
@@ -638,6 +637,6 @@ allTimesQ =
     { query = "SELECT t FROM times ORDER BY rowid"
     , parameters = []
     , rowDecoder =
-        Decode.time "t" <| \t ->
+        Decode.column "t" Decode.time <| \t ->
             Decode.succeed t
     }
