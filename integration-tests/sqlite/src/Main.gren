@@ -91,7 +91,7 @@ tests fsPerm =
                                     await "Get the person from the backup database" 
                                         (Sqlite.getOne backupDb (personByNameQ joey.name))  <| \backupPerson ->
                                             await "Also get the person from the original database" 
-                                                (Sqlite.getOne backupDb (personByNameQ joey.name)) <| \originalPerson ->
+                                                (Sqlite.getOne db (personByNameQ joey.name)) <| \originalPerson ->
                                                     concat
                                                         [ test "Name is the same in original and backup database" <| \_ ->
                                                             Expect.equal backupPerson.name originalPerson.name
