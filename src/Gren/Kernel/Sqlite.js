@@ -52,30 +52,29 @@ var _Sqlite_close = function (db) {
   });
 };
 
-var _Sqlite_function = F4(function (db, name, func, args) {
+var _Sqlite_function = F3(function (name, func, db) {
   return __Scheduler_binding(function (callback) {
     try {
       const options = {
         deterministic: true,
         directOnly: true,
         useBigIntArguments: false,
-        varargs: false,
+        varargs: true,
       };
-      var wrappedFunc;
-      if (args == 2) {
-        wrappedFunc = function (first, second) {
-          const value = A2(func, JSON.stringify(first), JSON.stringify(second));
-          return value.a;
-        };
-      } else {
-        wrappedFunc = function (first) {
-          const value = func(JSON.stringify(first));
-          return value.a;
-        };
+      const wrappedFunc = function(...args) {
+        const jsonArgs = args.map((v) => __Json_wrap(v));
+        const result = func(jsonArgs);
+        if (__Result_isOk(result)) {
+          return result.a.a.a;
+        } else {
+          return null;
+        }
       }
       db.function(name, options, wrappedFunc);
       callback(__Scheduler_succeed({}));
-    } catch (e) {
+    }
+    catch (e) {
+      console.log("e", e)
       callback(_Sqlite_constructError(e));
     }
   });

@@ -17,6 +17,8 @@ module Sqlite.Decode exposing
     -- Composing
     , succeed
     , fail
+
+    , unwrap
     )
 
 {-| Decode SQL results into Gren values.

@@ -235,8 +235,11 @@ tests fsPerm =
                             Expect.equalArrays testTimes fromDb
         , await "Open db for custom SQLite function tests" createTestDb <| \db ->
             concat
-                [ await "Create a custom function"
-                    (Sqlite.Function.fn "always_joey" (\_first -> Sqlite.Function.String "Joey") db) <| \_ ->
+                [ await "Register a custom function"
+                    (Sqlite.Function.register "always_joey" db <| 
+                        Sqlite.Function.arg Decode.string <| \first ->
+                        Sqlite.Function.succeed (Encode.string "Joey")
+                    ) <| \_ ->
                         await "Insert person into the database" (insertPerson joey db) <| \_ ->
                             await "Run the custom function in a query"
                                 (let
@@ -249,6 +252,31 @@ tests fsPerm =
                                 Sqlite.getOne db query) <| \person ->
                                     test "The function overwrites the name in the query"
                                         (\_ -> Expect.equal person.name "Joey")
+                , await "Register a custom function with two arguments"
+                    (Sqlite.Function.register "combine_strings" db <|
+                        Sqlite.Function.arg Decode.string <| \firstString ->
+                        Sqlite.Function.arg Decode.string <| \secondString ->
+                        Sqlite.Function.succeed (Encode.string (firstString ++ secondString))
+                    ) <| \_ ->
+                        await "Insert person into the database" (insertPerson robin db) <| \_ ->
+                            await "Run the custom function in a query"
+                                (let
+                                    query =
+                                        { query = "SELECT name, role FROM people WHERE name = combine_strings(:first, :second)"
+                                        , parameters = 
+                                            [ Encode.column "first" <| Encode.string "Rob" 
+                                            , Encode.column "second" <| Encode.string "in"
+                                            ]
+                                        , rowDecoder = personDecoder
+                                        }
+                                in
+                                Sqlite.getOne db query) <| \person ->
+                                    concat
+                                        [ test "The function gets the right person from the query"
+                                            (\_ -> Expect.equal person.name "Robin")
+                                        , test "The function ets the right person with the right role"
+                                            (\_ -> Expect.equal person.role "Creator")
+                                        ]
                 ]
         ]
 
