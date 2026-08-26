@@ -56,7 +56,7 @@ var _Sqlite_backup = F3(function (destination, pages, db) {
   return __Scheduler_binding(function (callback) {
     try {
       sqlite
-        .backup(db, destination, {
+        .backup(db, _FilePath_toString(destination), {
           source: "main",
           target: "main",
           rate: pages,

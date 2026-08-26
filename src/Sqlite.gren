@@ -94,7 +94,7 @@ withBackupPageRate pages (Backup record) =
 
 runBackup : Backup -> Task Error {}
 runBackup (Backup { destination, pages, db }) =
-    Gren.Kernel.Sqlite.backup (FileSystem.Path.toPosixString destination) pages db
+    Gren.Kernel.Sqlite.backup destination pages db
 
 
 
