@@ -7,6 +7,7 @@ import Gren.Kernel.Json exposing (wrap, unwrap)
 import Json.Decode as Decode exposing (decodeValue)
 import Result exposing (isOk)
 import Sqlite.Encode as SqliteEncode exposing (toJson)
+import Sqlite.Encode.Row as SqliteEncodeRow exposing (toJson)
 import Sqlite.Decode as SqliteDecode exposing (toJson)
 import Maybe exposing (Just, Nothing)
 
@@ -105,7 +106,7 @@ var _Sqlite_foldl = F4(function (query, db, func, acc) {
     try {
       var acc_ = acc;
       const prepped = db.prepare(query.__$query);
-      const params = __Json_unwrap(__SqliteEncode_toJson(query.__$parameters));
+      const params = __Json_unwrap(__SqliteEncodeRow_toJson(query.__$parameters));
       const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
 
       for (const value of prepped.iterate(params)) {
@@ -134,7 +135,7 @@ var _Sqlite_getMaybeOne = F2(function (query, db) {
   return __Scheduler_binding(function (callback) {
     try {
       const prepped = db.prepare(query.__$query);
-      const params = __Json_unwrap(__SqliteEncode_toJson(query.__$parameters));
+      const params = __Json_unwrap(__SqliteEncodeRow_toJson(query.__$parameters));
       const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
       const iterator = prepped.iterate(params);
 
@@ -176,7 +177,7 @@ var _Sqlite_executeMany = F3(function (statement, values, db) {
       } else {
         for (const val of values) {
           lastResult = prepped.run(
-            __Json_unwrap(__SqliteEncode_toJson(statement.__$parameters(val))),
+            __Json_unwrap(__SqliteEncodeRow_toJson(statement.__$parameters(val))),
           );
         }
       }

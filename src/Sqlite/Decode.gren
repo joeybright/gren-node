@@ -1,9 +1,5 @@
 module Sqlite.Decode exposing
     ( Decoder
-    , Column
-
-    -- Column decoders
-    , column
 
     -- Field decoders
     , bool
@@ -65,32 +61,6 @@ import Time
 -}
 type Decoder a
     = Decoder (Json.Decode.Decoder a)
-
-
-{-|-}
-type Column a
-    = Column (Json.Decode.Decoder a)
-
-
--- FIELD DECODERS
-
-
-{-| Decode a SQLite column with a specific value type.
--}
-column : String -> Decoder a -> (a -> Column b) -> Column b
-column columnName (Decoder jsonDecoder) cont =
-    Json.Decode.field columnName jsonDecoder
-        |> Json.Decode.andThen (\val ->
-            let
-                (Column decoder) =
-                    cont val
-            in
-            decoder
-        )
-        |> Column
-
-
----
 
 
 {-| Decode a string field.
@@ -185,7 +155,6 @@ time =
             Json.Decode.float
 
 
-
 {-| Decode a nullable field in the database.
 
 The first parameter is the field decoder function for the type if the value is not null.
@@ -214,16 +183,16 @@ Often used as the final step when chaining field decoders:
     Sqlite.Decode.int "age" <| \age ->
         Sqlite.Decode.succeed { name = name, age = age }
 -}
-succeed : a -> Column a
+succeed : a -> Decoder a
 succeed val =
-    Column (Json.Decode.succeed val)
+    Decoder (Json.Decode.succeed val)
 
 
 {-| Force a decoder to fail with the given message.
 -}
-fail : String -> Column a
+fail : String -> Decoder a
 fail reason =
-    Column (Json.Decode.fail reason)
+    Decoder (Json.Decode.fail reason)
 
 
 -- HELPERS

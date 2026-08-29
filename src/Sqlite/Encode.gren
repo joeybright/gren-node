@@ -1,9 +1,5 @@
 module Sqlite.Encode exposing
     ( Value
-    , Column
-
-    -- columns
-    , column
 
     -- fields
     , bool
@@ -15,6 +11,8 @@ module Sqlite.Encode exposing
     , timeWithMillis
     , maybe
     , null
+
+    , unwrap
     )
 
 {-| Encode SQL parameters.
@@ -42,25 +40,6 @@ import Time
 -}
 type Value
     = Value Json.Encode.Value
-
-    
-{-| An encoded SQLite column.
--}
-type Column
-    = Column
-        { key : String
-        , value : Json.Encode.Value
-        }
-
-
-{-| Encode a SQLite column value
--}
-column : String -> Value -> Column
-column field (Value value) =
-    Column
-        { key = field
-        , value = value
-        }
 
 
 {-| Encode a boolean value.
@@ -191,13 +170,13 @@ string s =
 
 This is used internally to communicate with SQlite in the kernel.
 -}
-toJson : Array Column -> Json.Encode.Value
+toJson : Array Value -> Array Json.Encode.Value
 toJson values =
     values
         |> Array.map unwrap
-        |> Json.Encode.object
+        -- |> Json.Encode.object
 
 
-unwrap : Column -> { key : String, value : Json.Encode.Value }
-unwrap (Column v) =
+unwrap : Value -> Json.Encode.Value
+unwrap (Value v) =
     v
