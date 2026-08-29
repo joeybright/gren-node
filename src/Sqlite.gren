@@ -65,6 +65,39 @@ close =
     Gren.Kernel.Sqlite.close
 
 
+
+-- Backup
+
+
+type Backup
+    = Backup
+        { destination : Path
+        , pages : Int
+        , db : Database
+        }
+
+
+
+backup : FileSystem.Permission -> Path -> Database -> Backup
+backup _ path db =
+    Backup
+        { destination = path
+        , pages = 100
+        , db = db
+        }
+
+
+withBackupPageRate : Int -> Backup -> Backup
+withBackupPageRate pages (Backup record) =
+    Backup { record | pages = pages }
+
+
+runBackup : Backup -> Task Error {}
+runBackup (Backup { destination, pages, db }) =
+    Gren.Kernel.Sqlite.backup destination pages db
+
+
+
 -- Query
 
 
