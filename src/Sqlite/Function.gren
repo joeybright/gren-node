@@ -34,8 +34,8 @@ arg decoder func =
         )
 
 
-succeed : Encode.Value -> Function
-succeed value =
+return : Encode.Value -> Function
+return value =
     Function <|
         (\args ->
             when args is

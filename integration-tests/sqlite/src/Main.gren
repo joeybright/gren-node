@@ -279,7 +279,7 @@ tests fsPerm =
                 [ await "Register a custom function"
                     (Sqlite.Function.register "always_joey" db <| 
                         Sqlite.Function.arg Decode.string <| \first ->
-                        Sqlite.Function.succeed (Encode.string "Joey")
+                        Sqlite.Function.return (Encode.string "Joey")
                     ) <| \_ ->
                         await "Insert person into the database" (insertPerson joey db) <| \_ ->
                             await "Run the custom function in a query"
@@ -297,7 +297,7 @@ tests fsPerm =
                     (Sqlite.Function.register "combine_strings" db <|
                         Sqlite.Function.arg Decode.string <| \firstString ->
                         Sqlite.Function.arg Decode.string <| \secondString ->
-                        Sqlite.Function.succeed (Encode.string (firstString ++ secondString))
+                        Sqlite.Function.return (Encode.string (firstString ++ secondString))
                     ) <| \_ ->
                         await "Insert person into the database" (insertPerson robin db) <| \_ ->
                             await "Run the custom function in a query"
