@@ -76,7 +76,7 @@ var _Sqlite_function = F3(function (name, func, db) {
       callback(__Scheduler_succeed({}));
     }
     catch (e) {
-      console.log("e", e);
+      callback(_Sqlite_constructError(e));
     }
   });
 });
