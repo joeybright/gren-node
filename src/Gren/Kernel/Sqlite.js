@@ -9,6 +9,7 @@ import Result exposing (isOk)
 import Sqlite.Encode as SqliteEncode exposing (toJson)
 import Sqlite.Encode.Row as SqliteEncodeRow exposing (toJson)
 import Sqlite.Decode as SqliteDecode exposing (toJson)
+import Sqlite.Aggregate as SqliteAggregate exposing (Entering, Exiting)
 import Maybe exposing (Just, Nothing)
 
 */
@@ -75,7 +76,45 @@ var _Sqlite_function = F3(function (name, func, db) {
       callback(__Scheduler_succeed({}));
     }
     catch (e) {
-      console.log("e", e)
+      console.log("e", e);
+    }
+  });
+});
+
+var _Sqlite_aggregate = F5(function (name, init, func, result, db) {
+  return __Scheduler_binding(function (callback) {
+    try {
+      const wrappedFunc = function(direction) {
+        var env = __SqliteAggregate_Entering;
+        if (direction == "inverse") {
+          env = __SqliteAggregate_Exiting;
+        }
+        return function(state, ...args) {
+          const jsonArgs = args.map((v) => __Json_wrap(v));
+          const result = A3(func, env, state, jsonArgs);
+          if (__Result_isOk(result)) {
+            return result.a;
+          } else {
+            return null;
+          }
+        }
+      }
+      const options = {
+        deterministic: true,
+        directOnly: true,
+        useBigIntArguments: false,
+        varargs: true,
+        start: () => { return init },
+        step: wrappedFunc("step"),
+        result: (state) => {
+          return result(state).a.a;
+        },
+        inverse: wrappedFunc("inverse")
+      }
+      db.aggregate(name, options);
+      callback(__Scheduler_succeed({}));
+    } catch (e) {
+      callback(_Sqlite_constructError(e));
     }
   });
 });

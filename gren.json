@@ -23,7 +23,8 @@
         "Sqlite.Decode.Row",
         "Sqlite.Encode",
         "Sqlite.Encode.Row",
-        "Sqlite.Function"
+        "Sqlite.Function",
+        "Sqlite.Aggregate"
     ],
     "gren-version": "0.6.0 <= v < 0.7.0",
     "dependencies": {

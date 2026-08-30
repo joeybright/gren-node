@@ -16,6 +16,7 @@ import Init
 import Json.Decode
 import Json.Encode
 import Time
+import Sqlite.Aggregate
 
 
 main : Effectful.Program a
@@ -317,6 +318,37 @@ tests fsPerm =
                                         , test "The function ets the right person with the right role"
                                             (\_ -> Expect.equal person.role "Creator")
                                         ]
+                , await "Register an aggregate function"
+                    (Sqlite.Aggregate.register "count_names" db <|
+                        Sqlite.Aggregate.aggregate
+                            { init = 0
+                            , function = 
+                                Sqlite.Aggregate.start <| \state ->
+                                Sqlite.Aggregate.arg Decode.string <| \firstString ->
+                                Sqlite.Aggregate.arg Decode.string <| \secondString ->
+                                Sqlite.Aggregate.return <| \direction ->
+                                    if firstString == secondString then
+                                        state + 1
+                                    else
+                                        state
+                            , result = \state ->
+                                Encode.int state
+                            }
+                    ) <| \_ ->
+                        await "Run the custom function in a query"
+                                (let
+                                    query =
+                                        { query = "SELECT count_names(name, :name) AS name_count FROM people;"
+                                        , parameters = 
+                                            [ Sqlite.Encode.Row.column "name" <| Encode.string "Robin"
+                                            ]
+                                        , rowDecoder = 
+                                            Sqlite.Decode.Row.column "name_count" Decode.int <| \count ->
+                                                Sqlite.Decode.Row.succeed { count = count }
+                                        }
+                                in
+                                Sqlite.getOne db query) <| \{ count } ->
+                                    test "Works" <| \_ -> Expect.equal count 1
                 ]
         ]
 
