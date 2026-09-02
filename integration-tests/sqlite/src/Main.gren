@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Dict
 import Expect
 import Node
 import Test.Runner.Effectful as Effectful exposing (test, await, awaitError, concat)
@@ -274,86 +275,300 @@ tests fsPerm =
                     await "Read test times back" (Sqlite.getAll db allTimesQ) <| \fromDb ->
                         test "Time values survive float round-trip through db" <| \_ ->
                             Expect.equalArrays testTimes fromDb
-        , await "Open db for custom SQLite function tests" createTestDb <| \db ->
+        , await "Open db for custom SQLite function and aggregate tests" (initializeFunctionTestsDb fsPerm) <| \db ->
             concat
-                [ await "Register a custom function"
-                    (Sqlite.Function.register "always_joey" db <| 
-                        Sqlite.Function.arg Decode.string <| \first ->
-                        Sqlite.Function.return (Encode.string "Joey")
+                [ await "Add data to the database" 
+                    (Task.sequence
+                        [ insertPerson joey db
+                        , insertPerson robin db
+                        , insertBasket basketOne db
+                        , insertBasket basketTwo db
+                        , insertBasket basketThree db
+                        , insertBasket basketOne db
+                        , insertBasket basketTwo db
+                        , insertBasket basketThree db
+                        ]
                     ) <| \_ ->
-                        await "Insert person into the database" (insertPerson joey db) <| \_ ->
-                            await "Run the custom function in a query"
-                                (let
-                                    query =
-                                        { query = "SELECT name, role FROM people WHERE name = always_joey(:name)"
-                                        , parameters = [ Sqlite.Encode.Row.column "name" <| Encode.string "Robin" ]
-                                        , rowDecoder = personDecoder
-                                        }
-                                in
-                                Sqlite.getOne db query) <| \person ->
-                                    test "The function overwrites the name in the query"
-                                        (\_ -> Expect.equal person.name "Joey")
-                , await "Register a custom function with two arguments"
-                    (Sqlite.Function.register "combine_strings" db <|
-                        Sqlite.Function.arg Decode.string <| \firstString ->
-                        Sqlite.Function.arg Decode.string <| \secondString ->
-                        Sqlite.Function.return (Encode.string (firstString ++ secondString))
-                    ) <| \_ ->
-                        await "Insert person into the database" (insertPerson robin db) <| \_ ->
-                            await "Run the custom function in a query"
-                                (let
-                                    query =
-                                        { query = "SELECT name, role FROM people WHERE name = combine_strings(:first, :second)"
-                                        , parameters = 
-                                            [ Sqlite.Encode.Row.column "first" <| Encode.string "Rob" 
-                                            , Sqlite.Encode.Row.column "second" <| Encode.string "in"
-                                            ]
-                                        , rowDecoder = personDecoder
-                                        }
-                                in
-                                Sqlite.getOne db query) <| \person ->
+                        concat [
+                            await "Register a custom function"
+                                (Sqlite.Function.register "always_joey" db <| 
+                                    Sqlite.Function.arg Decode.string <| \first ->
+                                    Sqlite.Function.return (Encode.string "Joey")
+                                ) <| \_ ->
                                     concat
-                                        [ test "The function gets the right person from the query"
-                                            (\_ -> Expect.equal person.name "Robin")
-                                        , test "The function ets the right person with the right role"
-                                            (\_ -> Expect.equal person.role "Creator")
+                                        [ await "Run the custom function in a query"
+                                            (Sqlite.getOne db
+                                                { query = "SELECT name, role FROM people WHERE name = always_joey(:name)"
+                                                , parameters = [ Sqlite.Encode.Row.column "name" <| Encode.string "Robin" ]
+                                                , rowDecoder = personDecoder
+                                                }
+                                            ) <| \person ->
+                                                concat
+                                                    [ test "The function gets the right person from the query" <| \_ -> 
+                                                        Expect.equal person.name joey.name
+                                                    , test "The function gets the right person with the right role from the query" <| \_ ->
+                                                        Expect.equal person.role joey.role
+                                                    ]
+                                        , awaitError "Run the custom function with a different argument type"
+                                            (Sqlite.getOne db
+                                                { query = "SELECT name, role FROM people WHERE name = always_joey(0)"
+                                                , parameters = []
+                                                , rowDecoder = personDecoder
+                                                }
+                                            ) <| \err ->
+                                                test "Expected to return `NoResultsError` given failure of a custom SQLite function returns `null`" <| \_ -> 
+                                                    Expect.equal err Sqlite.NoResultsError
+                                        , awaitError "Run the custom function with too many arguments"
+                                            (Sqlite.getOne db
+                                                { query = "SELECT name, role FROM people WHERE name = always_joey('first', 'second')"
+                                                , parameters = []
+                                                , rowDecoder = personDecoder
+                                                }
+                                            ) <| \err ->
+                                                test "Expected to return `NoResultsError` given failure of a custom SQLite function returns `null`" <| \_ -> 
+                                                    Expect.equal err Sqlite.NoResultsError
                                         ]
-                , await "Register an aggregate function"
-                    (Sqlite.Aggregate.register "count_names" db <|
-                        Sqlite.Aggregate.aggregate
-                            { init = 0
-                            , function = 
-                                Sqlite.Aggregate.start <| \state ->
-                                Sqlite.Aggregate.arg Decode.string <| \firstString ->
-                                Sqlite.Aggregate.arg Decode.string <| \secondString ->
-                                Sqlite.Aggregate.return <| \direction ->
-                                    if firstString == secondString then
-                                        state + 1
-                                    else
-                                        state
-                            , result = \state ->
-                                Encode.int state
-                            }
-                    ) <| \_ ->
-                        await "Run the custom function in a query"
-                                (let
-                                    query =
-                                        { query = "SELECT count_names(name, :name) AS name_count FROM people;"
-                                        , parameters = 
-                                            [ Sqlite.Encode.Row.column "name" <| Encode.string "Robin"
-                                            ]
-                                        , rowDecoder = 
-                                            Sqlite.Decode.Row.column "name_count" Decode.int <| \count ->
-                                                Sqlite.Decode.Row.succeed { count = count }
+                            , await "Register a custom function with two arguments"
+                                (Sqlite.Function.register "combine_strings" db <|
+                                    Sqlite.Function.arg Decode.string <| \firstString ->
+                                    Sqlite.Function.arg Decode.string <| \secondString ->
+                                    Sqlite.Function.return (Encode.string (firstString ++ secondString))
+                                ) <| \_ ->
+                                    concat
+                                        [ await "Run the custom function in a query"
+                                            (Sqlite.getOne db
+                                                { query = "SELECT name, role FROM people WHERE name = combine_strings(:first, :second)"
+                                                , parameters = 
+                                                    [ Sqlite.Encode.Row.column "first" <| Encode.string "Rob" 
+                                                    , Sqlite.Encode.Row.column "second" <| Encode.string "in"
+                                                    ]
+                                                , rowDecoder = personDecoder
+                                                }
+                                            ) <| \person ->
+                                                concat
+                                                    [ test "The function gets the right person from the query" <| \_ -> 
+                                                        Expect.equal person.name robin.name
+                                                    , test "The function gets the right person with the right role" <| \_ -> 
+                                                        Expect.equal person.role robin.role
+                                                    ]
+                                        , awaitError "Run the custom function with not enough arguments"
+                                            (Sqlite.getOne db
+                                                { query = "SELECT name, role FROM people WHERE name = combine_strings(:first)"
+                                                , parameters = 
+                                                    [ Sqlite.Encode.Row.column "first" <| Encode.string "Robin" 
+                                                    ]
+                                                , rowDecoder = personDecoder
+                                                }
+                                            ) <| \err ->
+                                                test "Expected to return `NoResultsError` given failure of a custom SQLite function returns `null`" <| \_ -> 
+                                                    Expect.equal err Sqlite.NoResultsError
+                                        ]
+                            , await "Register an aggregate function"
+                                (Sqlite.Aggregate.register "fruit_portions" db <|
+                                    Sqlite.Aggregate.aggregate
+                                        { init = 0
+                                        , function = 
+                                            Sqlite.Aggregate.start <| \state ->
+                                            Sqlite.Aggregate.arg Decode.string <| \split ->
+                                            Sqlite.Aggregate.arg Decode.int <| \count -> 
+                                            Sqlite.Aggregate.return <| \direction -> (
+                                                let
+                                                    portions =
+                                                        when split is
+                                                            "half" -> 2
+                                                            "third" -> 3
+                                                            "quarter" -> 4
+                                                            _ -> 1
+                                                in
+                                                when direction is
+                                                    Sqlite.Aggregate.Entering ->
+                                                        state + (portions * count)
+
+                                                    Sqlite.Aggregate.Exiting ->
+                                                        state - (portions * count)
+                                            )
+                                        , result = \state -> Encode.int state
                                         }
-                                in
-                                Sqlite.getOne db query) <| \{ count } ->
-                                    test "Works" <| \_ -> Expect.equal count 1
+                                ) <| \_ ->
+                                    concat
+                                        [ await "Run the custom aggregate function in a query"
+                                            (Sqlite.getOne db
+                                                { query = 
+                                                        """
+                                                        SELECT 
+                                                            fruit_portions('half', banana) AS banana_portion_count,
+                                                            fruit_portions('quarter', apple) AS apple_portion_count,
+                                                            fruit_portions('full', pear) AS pear_portion_count
+                                                        FROM baskets;
+                                                        """
+                                                    , parameters = []
+                                                    , rowDecoder = 
+                                                        Sqlite.Decode.Row.column "banana_portion_count" Decode.int <| \banana ->
+                                                        Sqlite.Decode.Row.column "apple_portion_count" Decode.int <| \apple ->
+                                                        Sqlite.Decode.Row.column "pear_portion_count" Decode.int <| \pear ->
+                                                            Sqlite.Decode.Row.succeed 
+                                                                { banana = banana
+                                                                , apple = apple
+                                                                , pear = pear
+                                                                }
+                                                    }
+                                            ) <| \{ banana, apple, pear } ->
+                                                concat
+                                                    [ test "Banana portions calculated correctly" <| \_ -> Expect.equal banana 12
+                                                    , test "Apple portions calculated correctly" <| \_ -> Expect.equal apple 40
+                                                    , test "Pear portions calculated correctly" <| \_ -> Expect.equal pear 8
+                                                    ]
+                                        , await "Run the custom aggreagate function in a window query"
+                                            (Sqlite.getAll db
+                                                { query = 
+                                                        """
+                                                        SELECT
+                                                            owner,
+                                                            id,
+                                                            fruit_portions('quarter', banana) 
+                                                                OVER (PARTITION BY owner ROWS BETWEEN CURRENT ROW AND CURRENT ROW) 
+                                                                AS banana_portion_count,
+                                                            fruit_portions('half', apple) 
+                                                                OVER (PARTITION BY owner ROWS BETWEEN CURRENT ROW AND CURRENT ROW) 
+                                                                AS apple_portion_count,
+                                                            fruit_portions('third', pear) 
+                                                                OVER (PARTITION BY owner ROWS BETWEEN CURRENT ROW AND CURRENT ROW) 
+                                                                AS pear_portion_count
+                                                        FROM baskets;
+                                                        """
+                                                    , parameters = []
+                                                    , rowDecoder = 
+                                                        Sqlite.Decode.Row.column "banana_portion_count" Decode.int <| \banana ->
+                                                        Sqlite.Decode.Row.column "apple_portion_count" Decode.int <| \apple ->
+                                                        Sqlite.Decode.Row.column "pear_portion_count" Decode.int <| \pear ->
+                                                        Sqlite.Decode.Row.column "owner" Decode.string <| \owner ->
+                                                        Sqlite.Decode.Row.column "id" Decode.int <| \id ->
+                                                            Sqlite.Decode.Row.succeed 
+                                                                { id = id
+                                                                , banana = banana
+                                                                , apple = apple
+                                                                , pear = pear
+                                                                , owner = owner
+                                                                }
+                                                    }
+                                            ) <| \results ->
+                                                let
+                                                    basketsByOwnerAndId =
+                                                        Array.foldl
+                                                            (\{ id, banana, apple, pear, owner } ->
+                                                                Dict.set (owner ++ " - " ++ (String.fromInt id))
+                                                                    { banana = banana
+                                                                    , apple = apple
+                                                                    , pear = pear
+                                                                    }
+                                                            )
+                                                            Dict.empty
+                                                            results
+                                                in
+                                                concat
+                                                    [ test "Both Joey's baskets are the same with expected ids" <| \_ -> 
+                                                        Expect.equal 
+                                                            (Dict.get "Joey - 3" basketsByOwnerAndId) 
+                                                            (Dict.get "Joey - 6" basketsByOwnerAndId)
+                                                    , test "Both Robin's baskets are the same with expected ids" <| \_ ->
+                                                        Expect.equal 
+                                                            (Dict.get "Robin - 1" basketsByOwnerAndId) 
+                                                            (Dict.get "Robin - 4" basketsByOwnerAndId)
+                                                    , test "Both Justins's baskets are the same with expected ids" <| \_ ->
+                                                        Expect.equal 
+                                                            (Dict.get "Justin - 2" basketsByOwnerAndId) 
+                                                            (Dict.get "Justin - 5" basketsByOwnerAndId)
+                                                    ]
+                                        , awaitError "Run the custom aggregate function with too many arguments"
+                                            (Sqlite.getOne db
+                                                { query = 
+                                                        """
+                                                        SELECT 
+                                                            fruit_portions('half', banana, 2) AS banana_portion_count
+                                                        FROM baskets;
+                                                        """
+                                                    , parameters = []
+                                                    , rowDecoder = 
+                                                        Sqlite.Decode.Row.column "banana_portion_count" Decode.int <| \banana ->
+                                                            Sqlite.Decode.Row.succeed banana
+                                                    }
+                                            ) <| \err ->
+                                                test "Fails as expected" <| \_ -> 
+                                                    when err is
+                                                        Sqlite.DecodingError _ ->
+                                                            Expect.pass
+                                                        
+                                                        _ ->
+                                                            Expect.fail "Unexpected error"
+                                        , awaitError "Run the custom aggregate function with too few arguments"
+                                            (Sqlite.getOne db
+                                                { query = 
+                                                        """
+                                                        SELECT 
+                                                            fruit_portions('half') AS banana_portion_count
+                                                        FROM baskets;
+                                                        """
+                                                    , parameters = []
+                                                    , rowDecoder = 
+                                                        Sqlite.Decode.Row.column "banana_portion_count" Decode.int <| \banana ->
+                                                            Sqlite.Decode.Row.succeed banana
+                                                    }
+                                            ) <| \err ->
+                                                test "Fails as expected" <| \_ -> 
+                                                    when err is
+                                                        Sqlite.DecodingError _ ->
+                                                            Expect.pass
+                                                        
+                                                        _ ->
+                                                            Expect.fail "Unexpected error"
+                                        ]
+                        ]
                 ]
         ]
 
 
 -- Helpers
+
+
+type Fruit
+    = Banana
+    | Apple
+    | Pear
+
+
+type alias Basket =
+    { banana : Int
+    , apple : Int
+    , pear : Int
+    , owner : String
+    }
+
+
+basketOne : Basket
+basketOne =
+    { banana = 2
+    , apple = 3
+    , pear = 0
+    , owner = "Robin"
+    }
+
+
+basketTwo : Basket
+basketTwo =
+    { banana = 0
+    , apple = 1
+    , pear = 1
+    , owner = "Justin"
+    }
+
+
+basketThree : Basket
+basketThree =
+    { banana = 1
+    , apple = 1
+    , pear = 3
+    , owner = "Joey"
+    }
 
 
 type alias Person =
@@ -393,6 +608,13 @@ initializeDb fsPerm =
         |> Task.andThen execDbSchema
 
 
+initializeFunctionTestsDb : FileSystem.Permission -> Task Sqlite.Error Sqlite.Database
+initializeFunctionTestsDb fsPerm =
+    Sqlite.open fsPerm Sqlite.defaultOptions Sqlite.Memory
+        |> Task.andThen execDbSchema
+        |> Task.andThen execBasketDbSchema
+
+
 initializePhysicalDb : FileSystem.Permission -> Task Sqlite.Error Sqlite.Database
 initializePhysicalDb fsPerm =
     Sqlite.open fsPerm Sqlite.defaultOptions (Sqlite.File diskDbPath)
@@ -417,10 +639,33 @@ execDbSchema db =
         """
 
 
+execBasketDbSchema : Sqlite.Database -> Task Sqlite.Error Sqlite.Database
+execBasketDbSchema db =
+    Sqlite.executeScript db
+        """
+        CREATE TABLE IF NOT EXISTS baskets (
+            id INTEGER PRIMARY KEY,
+            owner TEXT NOT NULL,
+            banana INT NOT NULL,
+            apple INT NOT NULL,
+            pear INT NOT NULL
+        ) STRICT;
+        """
+
+
 personEncoder : Person -> Array Sqlite.Encode.Row.Value
 personEncoder p =
     [ Sqlite.Encode.Row.column "name" <| Encode.string p.name
     , Sqlite.Encode.Row.column "role" <| Encode.string p.role
+    ]
+
+
+basketEncoder : Basket -> Array Sqlite.Encode.Row.Value
+basketEncoder b =
+    [ Sqlite.Encode.Row.column "owner" <| Encode.string b.owner
+    , Sqlite.Encode.Row.column "banana" <| Encode.int b.banana
+    , Sqlite.Encode.Row.column "apple" <| Encode.int b.apple
+    , Sqlite.Encode.Row.column "pear" <| Encode.int b.pear
     ]
 
 
@@ -443,6 +688,14 @@ insertPerson person db =
     Sqlite.execute db
         { statement = "INSERT INTO people (name, role) VALUES (:name, :role)"
         , parameters = personEncoder person
+        }
+
+
+insertBasket : Basket -> Sqlite.Database -> Task Sqlite.Error Sqlite.ExecutionSummary
+insertBasket basket db =
+    Sqlite.execute db
+        { statement = "INSERT INTO baskets (owner, banana, apple, pear) VALUES (:owner, :banana, :apple, :pear)"
+        , parameters = basketEncoder basket
         }
 
 
