@@ -67,6 +67,9 @@ var _Sqlite_function = F3(function (name, func, db) {
         const jsonArgs = args.map((v) => __Json_wrap(v));
         const result = func(jsonArgs);
         if (__Result_isOk(result)) {
+          // The triple `.a` gets the OK result, the SQLite encode 
+          // value, and then grabs the actual value that needs to
+          // be returned
           return result.a.a.a;
         } else {
           return null;
