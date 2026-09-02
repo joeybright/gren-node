@@ -11,40 +11,36 @@ import Sqlite.Decode as Decode
 
 
 type Function =
-    Function (Array Json.Encode.Value -> Result String Encode.Value)
+    Function (Array Json.Encode.Value -> Result {} Encode.Value)
 
 
 arg : Decode.Decoder a -> (a -> Function) -> Function
 arg decoder func =
-    Function <|
-        (\args ->
-            when Array.popFirst args is
-                Just { first = first, rest = rest } ->
-                    when Json.Decode.decodeValue (Decode.unwrap decoder) first is
-                        Ok val ->
-                            when func val is
-                                Function innerFunc ->
-                                    innerFunc rest
-                        
-                        Err err ->
-                            Err "decoding error"
+    Function <| \args ->
+        when Array.popFirst args is
+            Just { first = first, rest = rest } ->
+                when Json.Decode.decodeValue (Decode.unwrap decoder) first is
+                    Ok val ->
+                        when func val is
+                            Function innerFunc ->
+                                innerFunc rest
+                    
+                    Err err ->
+                        Err {}
 
-                Nothing ->
-                    Err "not enough arguments passed"
-        )
+            Nothing ->
+                Err {}
 
 
 return : Encode.Value -> Function
 return value =
-    Function <|
-        (\args ->
-            when args is
-                [] ->
-                    Ok value
+    Function <| \args ->
+        when args is
+            [] ->
+                Ok value
 
-                many ->
-                    Err "too many arguments passed"
-        )
+            many ->
+                Err {}
 
 
 register : String -> Sqlite.Database -> Function -> Task a {}
