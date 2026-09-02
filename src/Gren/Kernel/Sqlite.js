@@ -63,22 +63,21 @@ var _Sqlite_function = F3(function (name, func, db) {
         useBigIntArguments: false,
         varargs: true,
       };
-      const wrappedFunc = function(...args) {
+      const wrappedFunc = function (...args) {
         const jsonArgs = args.map((v) => __Json_wrap(v));
         const result = func(jsonArgs);
         if (__Result_isOk(result)) {
-          // The triple `.a` gets the OK result, the SQLite encode 
+          // The triple `.a` gets the OK result, the SQLite encode
           // value, and then grabs the actual value that needs to
           // be returned
           return result.a.a.a;
         } else {
           return null;
         }
-      }
+      };
       db.function(name, options, wrappedFunc);
       callback(__Scheduler_succeed({}));
-    }
-    catch (e) {
+    } catch (e) {
       callback(_Sqlite_constructError(e));
     }
   });
@@ -87,12 +86,12 @@ var _Sqlite_function = F3(function (name, func, db) {
 var _Sqlite_aggregate = F5(function (name, init, func, result, db) {
   return __Scheduler_binding(function (callback) {
     try {
-      const wrappedFunc = function(direction) {
+      const wrappedFunc = function (direction) {
         var env = __SqliteAggregate_Entering;
         if (direction == "inverse") {
           env = __SqliteAggregate_Exiting;
         }
-        return function(state, ...args) {
+        return function (state, ...args) {
           const jsonArgs = args.map((v) => __Json_wrap(v));
           const result = A3(func, env, state, jsonArgs);
           if (__Result_isOk(result)) {
@@ -100,20 +99,22 @@ var _Sqlite_aggregate = F5(function (name, init, func, result, db) {
           } else {
             return null;
           }
-        }
-      }
+        };
+      };
       const options = {
         deterministic: true,
         directOnly: true,
         useBigIntArguments: false,
         varargs: true,
-        start: () => { return init },
+        start: () => {
+          return init;
+        },
         step: wrappedFunc("step"),
         result: (state) => {
           return result(state).a.a;
         },
-        inverse: wrappedFunc("inverse")
-      }
+        inverse: wrappedFunc("inverse"),
+      };
       db.aggregate(name, options);
       callback(__Scheduler_succeed({}));
     } catch (e) {
@@ -148,7 +149,9 @@ var _Sqlite_foldl = F4(function (query, db, func, acc) {
     try {
       var acc_ = acc;
       const prepped = db.prepare(query.__$query);
-      const params = __Json_unwrap(__SqliteEncodeRow_toJson(query.__$parameters));
+      const params = __Json_unwrap(
+        __SqliteEncodeRow_toJson(query.__$parameters),
+      );
       const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
 
       for (const value of prepped.iterate(params)) {
@@ -177,7 +180,9 @@ var _Sqlite_getMaybeOne = F2(function (query, db) {
   return __Scheduler_binding(function (callback) {
     try {
       const prepped = db.prepare(query.__$query);
-      const params = __Json_unwrap(__SqliteEncodeRow_toJson(query.__$parameters));
+      const params = __Json_unwrap(
+        __SqliteEncodeRow_toJson(query.__$parameters),
+      );
       const rowDecoder = __SqliteDecode_toJson(query.__$rowDecoder);
       const iterator = prepped.iterate(params);
 
@@ -219,7 +224,9 @@ var _Sqlite_executeMany = F3(function (statement, values, db) {
       } else {
         for (const val of values) {
           lastResult = prepped.run(
-            __Json_unwrap(__SqliteEncodeRow_toJson(statement.__$parameters(val))),
+            __Json_unwrap(
+              __SqliteEncodeRow_toJson(statement.__$parameters(val)),
+            ),
           );
         }
       }
